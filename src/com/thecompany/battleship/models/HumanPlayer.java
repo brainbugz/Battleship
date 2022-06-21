@@ -1,11 +1,11 @@
 package com.thecompany.battleship.models;
 
-import com.thecompany.battleship.BattleshipBoard;
 import com.thecompany.battleship.interfaces.Coordinate;
 import com.thecompany.battleship.interfaces.Player;
 
 import java.util.NoSuchElementException;
 import java.util.Scanner;
+import java.util.regex.Pattern;
 
 public class HumanPlayer implements Player {
     private final Scanner scanInput;
@@ -17,15 +17,23 @@ public class HumanPlayer implements Player {
     @Override
     public Coordinate getNextMove() {
         String nextMove = null;
+        Pattern inputPattern = Pattern.compile("\\s*[a-jA-J]\\s*([1-9]|10)");
+        System.out.println("Enter next move: ");
+
         while(nextMove == null) {
-            System.out.println("Enter next move: ");
-            try {
-                //ignore whitespace, allow any case
-                nextMove = (scanInput.next("\\s*[a-jA-J]\\s*([1-9]|10)\\s*")).trim();
-            } catch (NoSuchElementException e) {
-                System.out.println("Invalid move. Try again.");
-            }
+                try {
+                    nextMove = (scanInput.next(inputPattern)).trim();
+                    scanInput.nextLine();
+                } catch (NoSuchElementException e) {
+                    System.out.println("Invalid move. Try again. " + e.getMessage());
+                    scanInput.nextLine();
+                }
         }
-        return new BattleshipCoordinate(nextMove.substring(0,1), nextMove.substring(1));
+        return new BattleshipCoordinate(nextMove.substring(0,1).toUpperCase(), nextMove.substring(1));
+    }
+
+    @Override
+    public String getName() {
+        return "Human player";
     }
 }

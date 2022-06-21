@@ -18,4 +18,9 @@ public abstract class AbstractShip implements Ship {
     public void damage() {
         health--;
     }
+
+    @Override
+    public boolean isDamaged() {
+        return health < getSize();
+    }
 }

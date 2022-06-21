@@ -7,10 +7,12 @@ import java.util.Objects;
 public class BattleshipCoordinate implements Coordinate<String, String> {
     private final String row;
     private final String column;
+    private boolean visited;
 
     public BattleshipCoordinate(String row, String column) {
         this.row = row;
         this.column = column;
+        this.visited = false;
     }
 
     public static BattleshipCoordinate of(String row, String column) {
@@ -28,15 +30,30 @@ public class BattleshipCoordinate implements Coordinate<String, String> {
     }
 
     @Override
+    public void visit() {
+        this.visited = true;
+    }
+
+    @Override
+    public boolean visited() {
+        return this.visited;
+    }
+
+    @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         BattleshipCoordinate that = (BattleshipCoordinate) o;
-        return row == that.row && column == that.column;
+        return row.equals(that.row) && column.equals(that.column);
     }
 
     @Override
     public int hashCode() {
         return Objects.hash(row, column);
+    }
+
+    @Override
+    public String toString() {
+        return "(" + row + "," + column + ")";
     }
 }

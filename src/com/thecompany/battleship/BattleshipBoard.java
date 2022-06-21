@@ -5,21 +5,21 @@ import com.thecompany.battleship.interfaces.Coordinate;
 import com.thecompany.battleship.interfaces.Player;
 import com.thecompany.battleship.interfaces.Ship;
 import com.thecompany.battleship.models.BattleshipCoordinate;
-import com.thecompany.battleship.models.BattleshipPlayer;
-import com.thecompany.battleship.models.HumanPlayer;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.IntStream;
 
 public class BattleshipBoard {
     private final int[][] board;
-    private final Map<Coordinate, Ship> boardMap;
+    private final Map<Coordinate, Pair<Coordinate, Ship>> boardMap;
     private final List<Ship> ships;
 
     private BattleshipBoard(int size, List<Ship> ships) {
         this.board = new int[size][size];
-        this.boardMap = new HashMap<Coordinate, Ship>();
+        this.boardMap = new HashMap<Coordinate, Pair<Coordinate, Ship>>();
         this.ships = ships;
 
         initBoard();
@@ -29,83 +29,140 @@ public class BattleshipBoard {
         for(Ship ship: ships) {
             placeShip(ship);
         }
-
-//        for(int i = 5; i >= 2; i--) {
-//            Position position = Math.abs(ThreadLocalRandom.current().nextInt()) % 2 == 0 ? Position.HORIZONTAL : Position.VERTICAL;
-//            int rowFudgeFactor = position.name().equals(Position.HORIZONTAL.name()) ? 10 : 11-i;
-//            int startRow = Math.abs(ThreadLocalRandom.current().nextInt() % rowFudgeFactor);
-//
-//            int colFudgeFactor = position.name().equals(Position.HORIZONTAL.name()) ? 11-i : 10;
-//            int startColumn = Math.abs(ThreadLocalRandom.current().nextInt() % colFudgeFactor);
-//
-//            if(position.name().equals(Position.HORIZONTAL.name())) {
-//                for(int j = startColumn; j < startColumn+i; j++) {
-//                    if(board[startRow][j] == 1) {
-//                        i++;
-//                        break;
-//                    }
-//                }
-//            } else {
-//                for(int j = startRow; j < startRow+i; j++) {
-//                    if(board[j][startColumn] == 1) {
-//                        i++;
-//                        break;
-//                    }
-//                }
-//            }
-//        }
     }
 
     private void placeShip(Ship ship) {
         int shipLength = ship.getSize();
         Position position = getRandomShipPosition();
 
-        int rowLimitConstant = position.name().equals(Position.HORIZONTAL.name()) ? 10 : 11 - shipLength;
-        int columnLimitConstant = position.name().equals(Position.HORIZONTAL.name()) ? 11 - shipLength : 10;
+        Pair<Integer, Integer> startLocation = findLocationForShip(ship, position);
 
+        final int finalRow = startLocation.x.intValue();
+        final int finalCol = startLocation.y.intValue();
+
+        if (position.name().equals(Position.HORIZONTAL.name())) {
+            IntStream.range(0, shipLength).forEach(value -> {
+                Coordinate coordinate = getCoordinateWithColumnOffset(finalRow, finalCol, value);
+                boardMap.put(coordinate, new Pair<>(coordinate, ship));
+            });
+        } else {
+            IntStream.range(0, shipLength).forEach(value -> {
+                Coordinate coordinate = getCoordinateWithRowOffset(finalRow, finalCol, value);
+                boardMap.put(coordinate, new Pair<>(coordinate, ship));
+            });
+        }
+    }
+
+    private Pair<Integer, Integer> findLocationForShip(Ship ship, Position position) {
+        int shipLength = ship.getSize();
+
+        int rowUpperBound = position.name().equals(Position.HORIZONTAL.name()) ? 10 : 10 - shipLength;
+        int columnUpperBound = position.name().equals(Position.HORIZONTAL.name()) ? 10 - shipLength : 10;
 
         boolean canPlaceShip = false;
-        int row = 0; int column = 0;
+        int startRow = 0;
+        int startColumn = 0;
 
         while (!canPlaceShip) {
-            int startRow = Math.abs(ThreadLocalRandom.current().nextInt() % rowLimitConstant);
-            int startColumn = Math.abs(ThreadLocalRandom.current().nextInt() % columnLimitConstant);
+            int finalStartRow = ThreadLocalRandom.current().nextInt(0, rowUpperBound);
+            int finalStartColumn = ThreadLocalRandom.current().nextInt(1, columnUpperBound+1);
 
             if (position.name().equals(Position.HORIZONTAL.name())) {
-                canPlaceShip = IntStream.of(shipLength).allMatch(value -> boardMap.get(BattleshipCoordinate.of(String.valueOf('A' + startRow), String.valueOf(startColumn + value))) == null);
+                canPlaceShip = IntStream.range(0, shipLength)
+                                .allMatch(
+                                        value ->
+                                        boardMap.get(getCoordinateWithColumnOffset(finalStartRow, finalStartColumn, value)) == null);
             } else {
-                canPlaceShip = IntStream.of(shipLength).allMatch(value -> boardMap.get(BattleshipCoordinate.of(String.valueOf('A' + startRow + value), String.valueOf(startColumn))) == null);
+                canPlaceShip = IntStream.range(0, shipLength)
+                                .allMatch(value -> boardMap.get(getCoordinateWithRowOffset(finalStartRow, finalStartColumn, value)) == null);
             }
-            row = startRow; column = startColumn;
+            startRow = finalStartRow;
+            startColumn = finalStartColumn;
         }
 
-        final int finalRow = row; final int finalCol = column;
-        if (position.name().equals(Position.HORIZONTAL.name())) {
-            IntStream.of(shipLength).forEach(value -> boardMap.put(BattleshipCoordinate.of(String.valueOf('A' + finalRow), String.valueOf(finalCol + value)), ship));
-        } else {
-            IntStream.of(shipLength).forEach(value -> boardMap.put(BattleshipCoordinate.of(String.valueOf('A' + finalRow + value), String.valueOf(finalCol)), ship));
-        }
+        return new Pair<Integer, Integer>(Integer.valueOf(startRow), Integer.valueOf(startColumn));
+    }
+
+    private static Coordinate getCoordinateWithColumnOffset(int row, int col, int offset) {
+        return BattleshipCoordinate.of(intToCharacter(row), String.valueOf(col + offset));
+    }
+
+    private static Coordinate getCoordinateWithRowOffset(int row, int col, int offset) {
+        return BattleshipCoordinate.of(intToCharacter(row + offset), String.valueOf(col));
+    }
+
+    private static String intToCharacter(int offset) {
+        return String.valueOf((char) ('A' + offset));
     }
 
     private Position getRandomShipPosition() {
         return Math.abs(ThreadLocalRandom.current().nextInt()) % 2 == 0 ? Position.HORIZONTAL : Position.VERTICAL;
     }
 
-    public boolean attack(Coordinate coordinate) {
-        if(boardMap.containsKey(coordinate)) {
-            boardMap.get(coordinate).damage();
-            boolean isShipDestroyed = boardMap.get(coordinate).isDestroyed();
-            if(isShipDestroyed) {
-                ships.remove(boardMap.get(coordinate));
-            }
-            return isShipDestroyed;
-        }
+    public void attack(Player attackingPlayer, Coordinate coordinate) {
+        logMessage(attackingPlayer.getName() + " is attacking coordinate: " + coordinate.toString());
 
-        return false;
+        if(boardMap.containsKey(coordinate) && !boardMap.get(coordinate).x.visited())
+            handleHit(attackingPlayer, coordinate);
+        else
+            handleMiss(attackingPlayer);
+    }
+
+    private void handleHit(Player attackingPlayer, Coordinate coordinate) {
+        boardMap.get(coordinate).x.visit();
+        boardMap.get(coordinate).y.damage();
+
+        boolean isShipDestroyed = boardMap.get(coordinate).y.isDestroyed();
+        if(isShipDestroyed) {
+            ships.remove(boardMap.get(coordinate).y);
+            logMessage(attackingPlayer.getName() + " DESTROYED enemy ship!!!!!!!!!");
+        } else
+            logMessage(attackingPlayer.getName() + " DAMAGED enemy ship!!!!!!!!!!");
+    }
+
+    private void handleMiss(Player attackingPlayer) {
+        List<String> missStrings = List.of("The kingdom of North Korea joins you in the eternal war against the ocean.",
+                "Here lies water. May it rest in peace.",
+                "You're just one more move away from destroying even more water.",
+                "Leviathan stirs due to your constant onslaught against his realm.",
+                "Fantastic news!!! You've discovered water.");
+        int missIndex = ThreadLocalRandom.current().nextInt(0, 5);
+        logMessage(attackingPlayer.getName() + ": " + missStrings.get(missIndex));
+        logMessage("");
+    }
+
+    private static void logMessage(String message) {
+        System.out.println(message);
     }
 
     public boolean isGameOver() {
         return ships.isEmpty();
+    }
+
+    public void draw() {
+        drawHeader();
+
+        for(int i = 0; i < 10; i++) {
+            System.out.print(intToCharacter(i));
+            for(int j = 0; j < 10; j++) {
+                Coordinate target = BattleshipCoordinate.of(intToCharacter(i), String.valueOf(j+1));
+                Pair<Coordinate,Ship> pair = boardMap.get(target);
+
+                System.out.print( pair != null && pair.x.visited() && pair.y.isDamaged() ? "*" : "_");
+            }
+            logMessage("");
+        }
+    }
+
+    private void drawHeader() {
+        IntStream.range(0, 11).forEach(value -> {
+            if (value == 0) {
+                System.out.print(" ");
+            } else {
+                System.out.print(value);
+            }
+        });
+        logMessage("");
     }
 
     public static BattleshipBoardBuilder builder() {
@@ -128,6 +185,15 @@ public class BattleshipBoard {
 
         public BattleshipBoard build() {
             return new BattleshipBoard(size, ships);
+        }
+    }
+
+    private static class Pair<X, Y> {
+        public final X x;
+        public final Y y;
+        public Pair(X x, Y y) {
+            this.x = x;
+            this.y = y;
         }
     }
 }
